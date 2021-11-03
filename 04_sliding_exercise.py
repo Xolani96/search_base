@@ -98,7 +98,7 @@ def hill_climbing(
 
     problem : SlidingProblem
       The search problem
-    f : Callable[[State], float]
+    f : Callable[[State], float] #The heuristics
       The heuristic function that evaluates states. Its input is a state.
     """
     current = problem.start_state()
@@ -107,6 +107,14 @@ def hill_climbing(
         yield current
         next_states = problem.next_states(current)
         # if with three branches
+        if not next_states:
+            return False
+        elif not (next_states - {parent}):
+            current,parent = parent, current
+        else:
+            new = min(next_states - {parent}, key=f)
+            parent = current #move the current node to the parent node
+            current = new
     yield current
     return None
 
@@ -131,21 +139,60 @@ def tabu_search(
     long_time : int
       If the optimum has not changed in 'long_time' steps, the algorithm stops.
     """
-    pass
+    current, opt, tabu = (problem.start_state(),problem.start_state(),
+                          [problem.start_state()])
+    since_opt_changed = 0
+    while not (problem.is_goal_state(current) or since_opt_changed > long_time):
+        yield current
+        since_opt_changed += 1
+        next_states = problem.next_states(current)
+        if not next_states:
+            return False
+        elif not (next_states - set(tabu)):
+            current = min(next_states, key=f)
+        else:
+            current = min(next_states-set(tabu), key=f)
+        tabu.append(current)
+        if len(tabu) > tabu_len:
+            tabu.pop(0) #remove the least recent one
+        if f(current) < f(opt): #value of the current node < previous optimum node
+            opt = current
+            since_opt_changed = 0 #because the value of the opt has changed
+    yield current
+    return None
 
 # heuristics
 
 
 def misplaced(state: State) -> int:
-    return 0
+    #return sum(i != j for i,j in zip(state,goal) if i!= 0)
+    sum = 0
+    for i, j in zip(state,goal):
+        if i != 0 and i != j:
+            sum += 1
 
+    return sum
 
+goal_rows,goal_cols = zip(*(( goal.index(i) // 3, goal.index(i) % 3 ) #the zip(*(..)) will separate the values to goal rows and goal columns
+                            for i in range(9)))
 def manhattan(state: State) -> int:
-    return 0
+    """
+    result = 0
+    for i, num in enumerate(state):
+        if num != 0:
+            result = abs( i // 3 - goal_rows[num]) + abs(i % 3 - goal_cols[num])
 
+    return sum(result)
+    """
+    return sum(abs(i // 3 -goal_rows[num]) + abs(i % 3 - goal_cols[num]) #i // 3 : the current row location, goal_rows[num]: the goal row location, same with column
+               for i , num in enumerate(state) if num != 0)
 
+edges = (1,3,5,7)
+corners = (0,2,6,8) #indexes of the values in the corners, 0 is in the index of 1, 2 index of 3 and so on
 def frame(state: State) -> int:
-    return 0
+    corner_sum = sum(state[i] != goal[i] for i in corners)
+    edge_sum = sum(state[i] != goal[i] for i in edges)
+    return edge_sum + 2*corner_sum
 
 
 # END OF YOUR CODE
