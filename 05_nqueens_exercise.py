@@ -45,9 +45,9 @@ class ChessBoard(Board):
                 if not (row_ind == i and col_ind == j):
                     if field & QueensFields.Q:
                         if (
-                            row_ind == i
-                            or col_ind == j
-                            or abs(row_ind - i) == abs(col_ind - j)
+                                row_ind == i
+                                or col_ind == j
+                                or abs(row_ind - i) == abs(col_ind - j)
                         ):
                             return True
         return False
@@ -79,7 +79,7 @@ class QueensProblem(ABC):
         return self.board
 
     def is_goal_state(self, state: Board) -> bool:
-        """Returns true is state is a goal state, false otherwise."""
+        """Returns true if state is a goal state, false otherwise."""
         board = state
         nqueens = 0
         for i, row in enumerate(board):
@@ -111,7 +111,7 @@ class QueensProblemNoAttack(QueensProblem):
             return None
         for i, row in enumerate(board):
             for j, field in enumerate(row):
-                if not (field & QueensFields.Q):
+                if not (field & QueensFields.Q): #if there is not a  queen in that Field then we put down a Queen.
                     next_board = copy.deepcopy(board)
                     next_board[i, j] = next_board[i, j] | QueensFields.Q
                     next_board.update_attack()
@@ -140,7 +140,7 @@ State = Union[Board, RowByRowState]
 
 
 def backtrack(
-    problem: QueensProblem, step_by_step: bool = False
+        problem: QueensProblem, step_by_step: bool = False
 ) -> Optional[Generator[State, None, None]]:
     """The BT1 algorithm implemented recursively with an inner funcion."""
     state = problem.start_state()
@@ -149,10 +149,21 @@ def backtrack(
     def backtrack_recursive(state: State) -> Optional[List[State]]:
         """The inner function that implements BT1."""
         # WRITE CODE HERE
-        pass
+        path.append(state)
+        if problem.is_goal_state(state): #if the current state is the goal state, then return an empty list.
+            return []
+        for next_state in problem.next_states(state): #(Go over)/(Loop through) all the neighbours(next_states) of the current(State) state
+            solution = backtrack_recursive(next_state)
+            if solution is not None: #if we found a solution, we return the concatenation of the solution with the state that yielded the solution.
+                return [next_state] + solution
+        return None
 
     result = backtrack_recursive(state)
     # WRITE CODE HERE
+    if result:
+        return (r for r in path) if step_by_step else (r for r in result) #we return the Path if we need to go step by step, else we return just the results. We return Generator values
+    else:
+        return None #return None if there is no solution.
 
 
 # SEARCH PROBLEMS (STATE SPACES)
@@ -162,7 +173,16 @@ class QueensProblemAttack(QueensProblem):
     """This search problem checks attacks, but puts Queens arbitrarily on the board."""
 
     def next_states(self, state: Board) -> Generator[Board, None, None]:
-        pass
+        board = state
+        if board.nqueens() >= self.n:
+            return None
+        for i, row in enumerate(board):
+            for j, field in enumerate(row):
+                if not (field & QueensFields.U) and not (field & QueensFields.Q): #if the field does not have a queen and it is not under attack by another queen htne we can place a queen there
+                    next_board = copy.deepcopy(board)
+                    next_board[i, j] = next_board[i, j] | QueensFields.Q
+                    next_board.update_attack()
+                    yield next_board
 
 
 class QueensProblemRowByRow(QueensProblem):
@@ -177,7 +197,13 @@ class QueensProblemRowByRow(QueensProblem):
             board,
             row_ind,
         ) = state  # the state consists of a board and the row index of the next row in which there is no queen
-        pass
+        for j,field in enumerate(board[row_ind]):
+            if not (field & QueensFields.U):
+                next_board = copy.deepcopy(board)
+                next_board[row_ind,j] = next_board[row_ind,j] | QueensFields.Q
+                next_board.update_attack()
+                yield next_board, row_ind + 1
+
 
     def is_goal_state(self, state: RowByRowState) -> bool:
         board, row_ind = state
@@ -186,6 +212,7 @@ class QueensProblemRowByRow(QueensProblem):
     def _to_drawable(self, state: RowByRowState) -> Board:
         board, row_ind = state
         return board
+
 
 # END OF YOUR CODE
 
@@ -220,7 +247,6 @@ board_sizes = {"4x4": 4, "6x6": 6, "8x8": 8, "10x10": 10}
 
 
 def create_window(board_gui):
-
     layout = [
         [sg.Column(board_gui.board_layout)],
         [
