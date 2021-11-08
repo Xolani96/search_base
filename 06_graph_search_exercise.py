@@ -163,9 +163,9 @@ class CatToDoorProblem(SearchProblem):
         for action in Actions:
             new_position = state.position + Directions[action]
             if (
-                new_position.row < self.m
-                and new_position.col < self.n
-                and not self.walls[new_position.row][new_position.col]
+                    new_position.row < self.m
+                    and new_position.col < self.n
+                    and not self.walls[new_position.row][new_position.col]
             ):
                 ns.add(State(new_position))
         return ns
@@ -194,7 +194,22 @@ def graph_search(problem, f):
         expanded_nodes = []
         while True:
             # Finish the general graph search
-            return None, pi, expanded_nodes
+            if not open_nodes:
+                return False, pi, expanded_nodes
+            node = min(open_nodes, key=f)
+            expanded_nodes.append(node)
+            if problem.is_goal_state(node):
+                return node, pi, expanded_nodes
+            open_nodes = open_nodes - {node}
+            next_nodes = problem.next_states(node)
+            for neighbor in next_nodes - {pi[node]}: #go over the next nodes excluding the parent node
+                # In these search problems, the cost is always 1
+                # (all moves cost the same)
+                if neighbor not in G or g[node] + 1 < g[neighbor]:
+                    pi[neighbor] = node
+                    g[neighbor] = g[node] + 1
+                    open_nodes.add(neighbor)
+            G.update(next_nodes - {pi[node]})
 
     def reconstruct(goal_node, pi):
         """Reconstructs the path and the actions from the goal node and the
@@ -228,11 +243,12 @@ class EvaluationFunctionDFS(EvaluationFunction):
     def __call__(self, node):
         return -self.g[node]
 
+
 # Finish these
 
 class EvaluationFunctionBFS(EvaluationFunction):
     def __call__(self, node):
-        pass
+        return self.g[node]
 
 
 class EvaluationFunctionLF(EvaluationFunction):
@@ -241,7 +257,7 @@ class EvaluationFunctionLF(EvaluationFunction):
         self.h = h
 
     def __call__(self, node):
-        pass
+        return self.h[node]
 
 
 class EvaluationFunctionAStar(EvaluationFunction):
@@ -250,7 +266,7 @@ class EvaluationFunctionAStar(EvaluationFunction):
         self.h = h
 
     def __call__(self, node):
-        pass
+        return self.g[node] + self.h[node]
 
 
 # The GUI runs the search algorithms through these functions.
@@ -309,8 +325,13 @@ def manhattan(problem: SearchProblem):
     """
 
     def heuristics(state: State):
-        # Finish this
-        pass
+        target_positions = problem.target_positions(state)
+        position = state.position
+        return sum(
+            abs(position.row - target_position.row)
+            + abs(position.col - target_position.col)
+            for target_position in target_positions
+        )
 
     return heuristics
 
@@ -323,19 +344,41 @@ class EatDonutsProblem(SearchProblem):
     and then get to the door."""
 
     def __init__(self, game_logic: GameLogic):
-        pass
+        cat_position = game_logic.collect_positions(LabyrinthFields.Cat)[0]
+        donut_positions = game_logic.collect_positions(LabyrinthFields.Donut)
+        self.state = EatDonutsState(cat_position, donut_positions)
+        self.door_positions = game_logic.collect_positions(LabyrinthFields.Door)
+        self.walls = [
+            [True if field == LabyrinthFields.Wall else False for field in row]
+            for row in game_logic.board
+        ]
+        self.m = len(self.walls)  # The total number of rows
+        self.n = len(self.walls[0])  # The total number of columns in the first row
 
     def target_positions(self, state):
         """Return the positions of the donuts if there are any left,
         otherwise return the positions of the doors"""
-        pass
+        if state.donuts:
+            return state.donuts
+        return self.door_positions
 
     def is_goal_state(self, state: EatDonutsState) -> bool:
-        pass
+        return not state.donuts and state.position in self.door_positions
 
     def next_states(self, state: EatDonutsState) -> Any:  # Set[EatDonutsState]:
-        pass
-
+        ns = set()
+        for action in Actions:
+            new_position = state.position + Directions[action]
+            if (
+                    new_position.row < self.m
+                    and new_position.col < self.n
+                    and not self.walls[new_position.row][new_position.col]
+            ):
+                donuts = tuple(
+                    position for position in state.donuts if position != new_position
+                )
+                ns.add(EatDonutsState(new_position, donuts))
+        return ns
 
 # END OF YOUR CODE
 
